@@ -1,4 +1,4 @@
-name: AWS S3 Bucket Deployment
+name: Go S3 Deployment
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
 jobs:
 
   build:
+    name: Build
     runs-on: ubuntu-latest
     
     steps:
@@ -22,7 +23,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: 1.20
+        go-version: 1.19
         
     - name: Build
       run: go build
@@ -30,12 +31,11 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: binary
-        path: |
-          ./*.exe
-          ./*.bin
-          
-  deploy:
+        name: go-binary
+        path: ./main
+        
+  deploy-s3-buckets:
+    name: Deploy S3 Buckets
     needs: build
     runs-on: ubuntu-latest
     
@@ -43,18 +43,15 @@ jobs:
     - name: Download artifact
       uses: actions/download-artifact@v3
       with:
-        name: binary
+        name: go-binary
         
-    - name: Configure AWS Credentials
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
         
-    - name: Deploy to S3 Buckets
+    - name: Deploy S3 Buckets
       run: |
-        aws s3 mb s3://account-1bucket1 --region ${{ env.AWS_REGION }} --no-public-access-block
-        aws s3 mb s3://account2bucket1 --region ${{ env.AWS_REGION }} --no-public-access-block
-        aws s3 mb s3://account2bucket2 --region ${{ env.AWS_REGION }} --no-public-access-block
-        aws s3 mb s3://test-bucket --region ${{ env.AWS_REGION }} --no-public-access-block
+        ./main --service-config '${{ toJson(github.event.repository.service-config) }}'
